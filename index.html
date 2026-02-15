@@ -1,155 +1,680 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AI Chat</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LM Studio Chat</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-<style>
+  <style>
+    :root {
+      --bg:#111; --fg:#eee; --bubble-user:#444; --bubble-ai:#222;
+      --accent:#777; --modal-bg:rgba(0,0,0,0.6);
+      --shadow:0 10px 25px rgba(0,0,0,0.35);
+    }
+    body.light {
+      --bg:#f5f5f5; --fg:#111; --bubble-user:#ddd; --bubble-ai:#ccc;
+      --accent:#666; --modal-bg:rgba(255,255,255,0.6);
+      --shadow:0 10px 25px rgba(0,0,0,0.18);
+    }
     body {
-        margin: 0;
-        background: #0f0f0f;
-        color: #fff;
-        font-family: system-ui, sans-serif;
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
+      margin:0; padding:0; background:var(--bg); color:var(--fg);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Inter",sans-serif;
+      display:flex; flex-direction:column; height:100vh;
+      transition:background .3s,color .3s;
     }
+    #topbar {
+      padding:12px 20px; border-bottom:1px solid var(--accent);
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    #title { font-weight:500; letter-spacing:.03em; text-transform:uppercase; font-size:13px; opacity:.8; }
+    .top-btn {
+      cursor:pointer; padding:6px 12px; border-radius:999px;
+      background:var(--bubble-user); color:var(--fg); border:none;
+      font-size:13px; margin-left:8px; transition:background .25s,transform .15s;
+    }
+    .top-btn:hover { background:var(--accent); transform:translateY(-1px); }
 
-    header {
-        padding: 16px;
-        background: #111;
-        border-bottom: 1px solid #222;
-        font-size: 20px;
-        font-weight: 600;
-        text-align: center;
-    }
-
-    #chat {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
+    #chat { flex:1; overflow-y:auto; padding:20px; scroll-behavior:smooth; }
+    .msg-wrapper { margin-bottom:14px; position:relative; }
 
     .msg {
-        max-width: 80%;
-        padding: 12px 16px;
-        border-radius: 12px;
-        line-height: 1.5;
-        white-space: pre-wrap;
+      padding:12px 16px; border-radius:14px; max-width:70%;
+      line-height:1.5; white-space:pre-wrap; opacity:0;
+      transform:translateY(8px); animation:fadeIn .22s forwards ease-out;
+      font-size:15px; cursor:default; transition:filter .15s;
+    }
+    .msg.clickable:hover { filter:brightness(1.08); }
+    .user { background:var(--bubble-user); margin-left:auto; }
+    .assistant { background:var(--bubble-ai); margin-right:auto; }
+
+    @keyframes fadeIn { to { opacity:1; transform:translateY(0); } }
+
+    #inputBar {
+      display:flex; padding:12px; border-top:1px solid var(--accent);
+      gap:10px; align-items:center;
+    }
+    #input {
+      flex:1; padding:12px; border-radius:999px; border:none;
+      background:var(--bubble-ai); color:var(--fg);
+      font-size:15px; outline:none; transition:box-shadow .2s;
+    }
+    #input:focus { box-shadow:0 0 0 1px var(--accent); }
+
+    #send {
+      padding:10px 18px; background:var(--bubble-user); border:none;
+      border-radius:999px; color:var(--fg); cursor:pointer;
+      font-size:14px; transition:background .2s,transform .15s;
+    }
+    #send:hover:enabled { background:var(--accent); transform:translateY(-1px); }
+    #send:disabled { opacity:.6; cursor:default; transform:none; }
+
+    #modalOverlay {
+      position:fixed; inset:0; background:var(--modal-bg);
+      display:none; justify-content:center; align-items:center; z-index:20;
+    }
+    #modal {
+      background:var(--bg); padding:20px; border-radius:12px;
+      width:320px; border:1px solid var(--accent);
+    }
+    #modal h2 { margin:0 0 12px; font-size:18px; }
+    #tokenInput,#editPromptInput,#editAssistantInput {
+      width:100%; padding:10px; border-radius:8px; border:none;
+      background:var(--bubble-ai); color:var(--fg);
+      margin-bottom:12px; resize:vertical; min-height:40px;
+    }
+    #saveToken,#saveEditPrompt,#saveEditAssistant {
+      width:100%; padding:10px; border-radius:8px; border:none;
+      background:var(--bubble-user); color:var(--fg); cursor:pointer;
+      font-size:14px;
+    }
+    #saveToken:hover,#saveEditPrompt:hover,#saveEditAssistant:hover {
+      background:var(--accent);
     }
 
-    .user {
-        background: #3a3fef;
-        align-self: flex-end;
+    .action-card,.user-action-card,.delete-card {
+      margin-top:6px; padding:8px 10px; border-radius:10px;
+      background:var(--bg); box-shadow:var(--shadow);
+      opacity:0; transform:translateY(-4px); pointer-events:none;
+      transition:opacity .18s,transform .18s; max-width:70%;
+    }
+    .assistant-card { margin-right:auto; }
+    .user-card { margin-left:auto; }
+    .action-card.visible,.user-action-card.visible,.delete-card.visible {
+      opacity:1; transform:translateY(4px); pointer-events:auto;
     }
 
-    .bot {
-        background: #1e1e1e;
-        border: 1px solid #333;
-        align-self: flex-start;
+    .action-buttons,.delete-buttons {
+      display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap;
+    }
+    .action-btn,.delete-btn {
+      padding:4px 10px; border-radius:999px; border:none;
+      background:var(--bubble-user); color:var(--fg);
+      font-size:12px; cursor:pointer; transition:background .2s,transform .15s;
+    }
+    .action-btn:hover,.delete-btn:hover {
+      background:var(--accent); transform:translateY(-1px);
     }
 
-    #input-area {
-        display: flex;
-        padding: 12px;
-        background: #111;
-        border-top: 1px solid #222;
+    .version-bar { font-size:12px; display:flex; align-items:center; gap:8px; }
+    .version-arrow {
+      cursor:pointer; padding:2px 6px; border-radius:999px;
+      background:var(--bubble-ai); user-select:none;
+      transition:background .2s,transform .15s;
     }
+    .version-arrow:hover { background:var(--accent); transform:translateY(-1px); }
+    .version-arrow.disabled { opacity:.4; cursor:default; transform:none; }
+    .version-label { opacity:.8; }
 
-    #msg-input {
-        flex: 1;
-        padding: 12px;
-        border-radius: 8px;
-        border: none;
-        outline: none;
-        background: #1b1b1b;
-        color: #fff;
-        font-size: 16px;
-    }
+    .delete-text { font-size:13px; margin-bottom:6px; opacity:.9; }
 
-    #send-btn {
-        margin-left: 10px;
-        padding: 12px 20px;
-        background: #3a3fef;
-        border: none;
-        border-radius: 8px;
-        color: #fff;
-        font-size: 16px;
-        cursor: pointer;
+    .streaming-disabled {
+      pointer-events:none;
+      opacity:0.4;
     }
-
-    #send-btn:hover {
-        background: #5a5fff;
-    }
-</style>
+  </style>
 </head>
 
 <body>
-<header>AI Chat</header>
+  <div id="topbar">
+    <span id="title">LM Studio Chat</span>
+    <div>
+      <button id="settingsBtn" class="top-btn">⚙️ Settings</button>
+      <button id="themeToggle" class="top-btn">Dark / Light</button>
+    </div>
+  </div>
 
-<div id="chat"></div>
+  <div id="chat"></div>
 
-<div id="input-area">
-    <input id="msg-input" type="text" placeholder="Type a message..." />
-    <button id="send-btn">Send</button>
-</div>
+  <div id="inputBar">
+    <input id="input" placeholder="Say something…" autocomplete="off" />
+    <button id="send">Send</button>
+  </div>
+
+  <div id="modalOverlay">
+    <div id="modal"></div>
+  </div>
 
 <script>
-const API_URL = "https://27f4d26cdeb71948-123-50-117-200.serveousercontent.com/v1/chat/completions";
-const API_KEY = "sk-lm-wTCqVhA1:UCmAJO2u2qVh2wr4F9Yp";
-const MODEL_NAME = "chimera-deepseek-nsfw-8b";
+/* =========================
+   CONFIG
+========================= */
+const API_URL = "https://book5-de-rai.tail38c04a.ts.net/v1/chat/completions";
+const MODEL = "gemma-3-4b-vl-it-gemini-pro-heretic-uncensored-thinking_gguf";
 
+let API_TOKEN = localStorage.getItem("lmstudio_token") || "";
+
+/* =========================
+   DOM
+========================= */
 const chat = document.getElementById("chat");
-const input = document.getElementById("msg-input");
-const sendBtn = document.getElementById("send-btn");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+const themeToggle = document.getElementById("themeToggle");
+const settingsBtn = document.getElementById("settingsBtn");
+const modalOverlay = document.getElementById("modalOverlay");
+const modal = document.getElementById("modal");
 
-function addMessage(text, sender) {
-    const div = document.createElement("div");
-    div.className = "msg " + sender;
-    div.textContent = text;
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
+/* =========================
+   STATE
+========================= */
+// user:      { role:'user', content:string }
+// assistant: { role:'assistant', versions:[{content:string}], currentVersion:number, userIndex:number }
+const messages = [];
+let abortController = null;
+let isStreaming = false;
+
+/* =========================
+   THEME + SETTINGS
+========================= */
+themeToggle.onclick = () => document.body.classList.toggle("light");
+settingsBtn.onclick = () => openTokenModal();
+
+function openTokenModal() {
+  modal.innerHTML = `
+    <h2>API Token</h2>
+    <textarea id="tokenInput"></textarea>
+    <button id="saveToken">Save</button>
+  `;
+  const t = modal.querySelector("#tokenInput");
+  const s = modal.querySelector("#saveToken");
+  t.value = API_TOKEN;
+  s.onclick = () => {
+    API_TOKEN = t.value.trim();
+    localStorage.setItem("lmstudio_token", API_TOKEN);
+    modalOverlay.style.display = "none";
+  };
+  modalOverlay.style.display = "flex";
 }
 
-async function sendMessage() {
-    const userMsg = input.value.trim();
-    if (!userMsg) return;
+modalOverlay.onclick = e => {
+  if (e.target === modalOverlay) modalOverlay.style.display = "none";
+};
 
-    addMessage(userMsg, "user");
-    input.value = "";
+/* =========================
+   RENDERING
+========================= */
+function addMessageElement(content, role, index, versionIndex = null) {
+  const wrap = document.createElement("div");
+  wrap.className = "msg-wrapper";
 
-    try {
-        const response = await fetch(API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + API_KEY
-            },
-            body: JSON.stringify({
-                model: MODEL_NAME,
-                messages: [{ role: "user", content: userMsg }]
-            })
-        });
+  const div = document.createElement("div");
+  div.className = "msg " + (role === "user" ? "user" : "assistant");
+  div.classList.add("clickable");
+  div.dataset.messageIndex = index;
+  if (versionIndex !== null) div.dataset.versionIndex = versionIndex;
+  div.innerHTML = marked.parse(content || "");
+  wrap.appendChild(div);
 
-        const data = await response.json();
-        const botMsg = data.choices?.[0]?.message?.content || "(No response)";
-        addMessage(botMsg, "bot");
+  if (role === "assistant") {
+    const card = document.createElement("div");
+    card.className = "action-card assistant-card";
+    card.dataset.messageIndex = index;
+    card.innerHTML = `
+      <div class="action-buttons">
+        <button class="action-btn" data-action="continue">Continue</button>
+        <button class="action-btn" data-action="regenerate">Regenerate</button>
+        <button class="action-btn" data-action="editAssistant">Edit</button>
+      </div>
+      <div class="version-bar">
+        <span class="version-arrow" data-dir="prev">&lt;</span>
+        <span class="version-label">1 / 1</span>
+        <span class="version-arrow" data-dir="next">&gt;</span>
+      </div>
+    `;
+    wrap.appendChild(card);
+  }
 
-    } catch (err) {
-        addMessage("Error: " + err.message, "bot");
+  if (role === "user") {
+    const card = document.createElement("div");
+    card.className = "user-action-card user-card";
+    card.dataset.messageIndex = index;
+    card.innerHTML = `
+      <div class="action-buttons">
+        <button class="action-btn" data-user-action="editUser">Edit</button>
+        <button class="action-btn" data-user-action="delete">Delete</button>
+      </div>
+    `;
+    wrap.appendChild(card);
+  }
+
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function renderMessages() {
+  chat.innerHTML = "";
+  messages.forEach((m, i) => {
+    if (m.role === "user") {
+      addMessageElement(m.content, "user", i);
+    } else {
+      const v = m.versions[m.currentVersion];
+      addMessageElement(v.content, "assistant", i, m.currentVersion);
+      updateActionCard(i);
     }
+  });
 }
 
-sendBtn.onclick = sendMessage;
-input.onkeydown = (e) => {
-    if (e.key === "Enter") sendMessage();
+function updateActionCard(i) {
+  const msg = messages[i];
+  if (!msg || msg.role !== "assistant") return;
+
+  const wrap = [...chat.querySelectorAll(".msg-wrapper")].find(w =>
+    w.querySelector(".action-card")?.dataset.messageIndex == i
+  );
+  if (!wrap) return;
+
+  const card = wrap.querySelector(".action-card");
+  const label = card.querySelector(".version-label");
+  const prev = card.querySelector('[data-dir="prev"]');
+  const next = card.querySelector('[data-dir="next"]');
+
+  const total = msg.versions.length;
+  const current = msg.currentVersion + 1;
+
+  label.textContent = `${current} / ${total}`;
+  prev.classList.toggle("disabled", msg.currentVersion === 0);
+  next.classList.toggle("disabled", msg.currentVersion === total - 1);
+}
+
+function hideAllCards() {
+  document.querySelectorAll(".action-card,.user-action-card,.delete-card")
+    .forEach(c => c.classList.remove("visible"));
+}
+
+/* disable/enable controls during streaming */
+function setStreamingDisabled(state) {
+  document.querySelectorAll(".action-card, .user-action-card, .version-arrow")
+    .forEach(el => {
+      if (state) el.classList.add("streaming-disabled");
+      else el.classList.remove("streaming-disabled");
+    });
+}
+
+/* =========================
+   HISTORY HELPERS
+========================= */
+function buildHistoryUntil(indexInclusive) {
+  const arr = [];
+  for (let i = 0; i <= indexInclusive; i++) {
+    const m = messages[i];
+    if (m.role === "user") {
+      arr.push({ role: "user", content: m.content });
+    } else {
+      const v = m.versions[m.currentVersion];
+      arr.push({ role: "assistant", content: v.content });
+    }
+  }
+  return arr;
+}
+
+function findUserIndexForAssistant(assistantIndex) {
+  for (let i = assistantIndex - 1; i >= 0; i--) {
+    if (messages[i].role === "user") return i;
+  }
+  return null;
+}
+
+/* =========================
+   CLICK HANDLING
+========================= */
+chat.addEventListener("click", e => {
+  const assistantMsg = e.target.closest(".msg.assistant");
+  const userMsg = e.target.closest(".msg.user");
+  const actionCard = e.target.closest(".action-card");
+  const userCard = e.target.closest(".user-action-card");
+  const deleteCard = e.target.closest(".delete-card");
+  const arrow = e.target.closest(".version-arrow");
+  const actionBtn = e.target.closest(".action-btn");
+  const deleteBtn = e.target.closest(".delete-btn");
+
+  if (assistantMsg && !actionCard && !arrow && !actionBtn) {
+    const i = assistantMsg.dataset.messageIndex;
+    hideAllCards();
+    document.querySelectorAll(".action-card").forEach(c => {
+      if (c.dataset.messageIndex == i) c.classList.add("visible");
+    });
+    return;
+  }
+
+  if (userMsg && !userCard && !actionBtn && !deleteBtn && !deleteCard) {
+    const i = userMsg.dataset.messageIndex;
+    hideAllCards();
+    document.querySelectorAll(".user-action-card").forEach(c => {
+      if (c.dataset.messageIndex == i) c.classList.add("visible");
+    });
+    return;
+  }
+
+  if (actionBtn && actionBtn.dataset.action) {
+    const i = Number(actionBtn.closest(".action-card").dataset.messageIndex);
+    if (actionBtn.dataset.action === "continue") continueFromAssistant(i);
+    if (actionBtn.dataset.action === "regenerate") regenerateAssistant(i);
+    if (actionBtn.dataset.action === "editAssistant") openEditAssistantModal(i);
+    return;
+  }
+
+  if (actionBtn && actionBtn.dataset.userAction) {
+    const i = Number(actionBtn.closest(".user-action-card").dataset.messageIndex);
+    if (actionBtn.dataset.userAction === "editUser") openEditUserModal(i);
+    if (actionBtn.dataset.userAction === "delete") showDeleteConfirm(i);
+    return;
+  }
+
+  if (arrow) {
+    const i = Number(arrow.closest(".action-card").dataset.messageIndex);
+    switchVersion(i, arrow.dataset.dir === "prev" ? -1 : 1);
+    return;
+  }
+
+  if (deleteBtn) {
+    const i = Number(deleteBtn.closest(".delete-card").dataset.messageIndex);
+    if (deleteBtn.dataset.type === "cancel")
+      deleteBtn.closest(".delete-card").classList.remove("visible");
+    else deleteFromIndex(i);
+    return;
+  }
+
+  hideAllCards();
+});
+
+/* =========================
+   DELETE
+========================= */
+function showDeleteConfirm(i) {
+  const wrap = [...chat.querySelectorAll(".msg-wrapper")].find(w =>
+    w.querySelector(".user-action-card")?.dataset.messageIndex == i
+  );
+  let d = wrap.querySelector(".delete-card");
+  if (!d) {
+    d = document.createElement("div");
+    d.className = "delete-card user-card";
+    d.dataset.messageIndex = i;
+    d.innerHTML = `
+      <div class="delete-text">
+        Delete this message?<br/>This will also remove all messages after it.
+      </div>
+      <div class="delete-buttons">
+        <button class="delete-btn" data-type="cancel">Cancel</button>
+        <button class="delete-btn" data-type="confirm">Delete</button>
+      </div>
+    `;
+    wrap.appendChild(d);
+  }
+  d.classList.add("visible");
+}
+
+function deleteFromIndex(i) {
+  messages.splice(i);
+  renderMessages();
+}
+
+/* =========================
+   VERSION SWITCHING
+========================= */
+function switchVersion(i, delta) {
+  const m = messages[i];
+  if (!m || m.role !== "assistant") return;
+  const nv = m.currentVersion + delta;
+  if (nv < 0 || nv >= m.versions.length) return;
+  m.currentVersion = nv;
+  renderMessages();
+}
+
+/* =========================
+   EDIT USER
+========================= */
+function openEditUserModal(userIndex) {
+  const msg = messages[userIndex];
+  if (!msg || msg.role !== "user") return;
+
+  modal.innerHTML = `
+    <h2>Edit Message</h2>
+    <textarea id="editPromptInput"></textarea>
+    <button id="saveEditPrompt">Save</button>
+  `;
+  const t = modal.querySelector("#editPromptInput");
+  const s = modal.querySelector("#saveEditPrompt");
+  t.value = msg.content || "";
+
+  s.onclick = () => {
+    const newText = t.value;
+    msg.content = newText;          // just update text
+    modalOverlay.style.display = "none";
+    renderMessages();               // keep everything after
+  };
+
+  modalOverlay.style.display = "flex";
+}
+
+/* =========================
+   EDIT ASSISTANT (in place)
+========================= */
+function openEditAssistantModal(assistantIndex) {
+  const msg = messages[assistantIndex];
+  if (!msg || msg.role !== "assistant") return;
+
+  const currentVersionIndex = msg.currentVersion;
+  const current = msg.versions[currentVersionIndex];
+
+  modal.innerHTML = `
+    <h2>Edit Assistant Reply</h2>
+    <textarea id="editAssistantInput"></textarea>
+    <button id="saveEditAssistant">Save</button>
+  `;
+  const t = modal.querySelector("#editAssistantInput");
+  const s = modal.querySelector("#saveEditAssistant");
+  t.value = current.content || "";
+
+  s.onclick = () => {
+    const newText = t.value;
+    msg.versions[currentVersionIndex].content = newText;  // edit in place
+    modalOverlay.style.display = "none";
+    renderMessages();
+  };
+
+  modalOverlay.style.display = "flex";
+}
+
+/* =========================
+   TOKEN CHECK
+========================= */
+async function ensureToken() {
+  if (!API_TOKEN) {
+    openTokenModal();
+    return false;
+  }
+  return true;
+}
+
+/* =========================
+   STREAMING
+========================= */
+async function streamAssistantReply({ history, assistantIndex, versionIndex }) {
+  const ok = await ensureToken();
+  if (!ok) return;
+
+  let aiBubble = null;
+  document.querySelectorAll(".msg-wrapper").forEach(w => {
+    const m = w.querySelector(".msg.assistant");
+    if (m && Number(m.dataset.messageIndex) === assistantIndex) aiBubble = m;
+  });
+
+  send.disabled = false;
+  send.textContent = "⏸ Stop";
+  isStreaming = true;
+  abortController = new AbortController();
+  setStreamingDisabled(true);
+
+  let rawText = messages[assistantIndex].versions[versionIndex].content || "";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + API_TOKEN
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: history,
+        stream: true
+      }),
+      signal: abortController.signal
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      let lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      for (let line of lines) {
+        line = line.trim();
+        if (!line.startsWith("data:")) continue;
+        const json = line.slice(5).trim();
+        if (!json || json === "[DONE]") continue;
+
+        try {
+          const event = JSON.parse(json);
+          const delta = event.choices?.[0]?.delta?.content;
+          if (delta) {
+            rawText += delta;
+            messages[assistantIndex].versions[versionIndex].content = rawText;
+            if (aiBubble) {
+              aiBubble.innerHTML = marked.parse(rawText);
+              chat.scrollTop = chat.scrollHeight;
+            }
+          }
+        } catch (err) {
+          console.error("SSE parse error:", err);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Stream error:", err);
+  } finally {
+    isStreaming = false;
+    abortController = null;
+    send.disabled = false;
+    send.textContent = "Send";
+    setStreamingDisabled(false);
+    renderMessages();
+  }
+}
+
+/* =========================
+   SEND / CONTINUE / REGENERATE
+========================= */
+async function sendNewUserMessage(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  if (!await ensureToken()) return;
+
+  messages.push({ role: "user", content: trimmed });
+  const userIndex = messages.length - 1;
+
+  messages.push({
+    role: "assistant",
+    versions: [{ content: "" }],
+    currentVersion: 0,
+    userIndex
+  });
+  const assistantIndex = messages.length - 1;
+
+  renderMessages();
+  input.value = "";
+  input.focus();
+
+  const history = buildHistoryUntil(userIndex);
+  streamAssistantReply({ history, assistantIndex, versionIndex: 0 });
+}
+
+function continueFromAssistant(assistantIndex) {
+  const msg = messages[assistantIndex];
+  if (!msg || msg.role !== "assistant") return;
+
+  const versionIndex = msg.currentVersion;
+  const history = buildHistoryUntil(assistantIndex);
+  history.push({ role: "user", content: "Continue." });
+
+  streamAssistantReply({ history, assistantIndex, versionIndex });
+}
+
+function regenerateAssistant(assistantIndex) {
+  const msg = messages[assistantIndex];
+  if (!msg || msg.role !== "assistant") return;
+
+  const userIdx = findUserIndexForAssistant(assistantIndex);
+  if (userIdx === null) return;
+
+  const newVersionIndex = msg.versions.length;
+  msg.versions.push({ content: "" });
+  msg.currentVersion = newVersionIndex;
+
+  renderMessages();
+
+  const history = buildHistoryUntil(userIdx);
+  streamAssistantReply({ history, assistantIndex, versionIndex: newVersionIndex });
+}
+
+/* =========================
+   SEND BUTTON / ENTER KEY
+========================= */
+send.onclick = () => {
+  if (isStreaming && abortController) {
+    abortController.abort();
+    isStreaming = false;
+    abortController = null;
+    send.disabled = false;
+    send.textContent = "Send";
+    setStreamingDisabled(false);
+  } else {
+    sendNewUserMessage(input.value);
+  }
+};
+
+input.onkeydown = e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (isStreaming && abortController) {
+      abortController.abort();
+      isStreaming = false;
+      abortController = null;
+      send.disabled = false;
+      send.textContent = "Send";
+      setStreamingDisabled(false);
+    } else {
+      sendNewUserMessage(input.value);
+    }
+  }
 };
 </script>
 </body>
-
 </html>
-
