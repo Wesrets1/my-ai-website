@@ -7,679 +7,1368 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <style>
+    /* ============================================
+       THEME VARIABLES
+    ============================================ */
     :root {
-      --bg:#111; --fg:#eee; --bubble-user:#444; --bubble-ai:#222;
-      --accent:#777; --modal-bg:rgba(0,0,0,0.6);
-      --shadow:0 10px 25px rgba(0,0,0,0.35);
-    }
-    body.light {
-      --bg:#f5f5f5; --fg:#111; --bubble-user:#ddd; --bubble-ai:#ccc;
-      --accent:#666; --modal-bg:rgba(255,255,255,0.6);
-      --shadow:0 10px 25px rgba(0,0,0,0.18);
-    }
-    body {
-      margin:0; padding:0; background:var(--bg); color:var(--fg);
-      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Inter",sans-serif;
-      display:flex; flex-direction:column; height:100vh;
-      transition:background .3s,color .3s;
-    }
-    #topbar {
-      padding:12px 20px; border-bottom:1px solid var(--accent);
-      display:flex; justify-content:space-between; align-items:center;
-    }
-    #title { font-weight:500; letter-spacing:.03em; text-transform:uppercase; font-size:13px; opacity:.8; }
-    .top-btn {
-      cursor:pointer; padding:6px 12px; border-radius:999px;
-      background:var(--bubble-user); color:var(--fg); border:none;
-      font-size:13px; margin-left:8px; transition:background .25s,transform .15s;
-    }
-    .top-btn:hover { background:var(--accent); transform:translateY(-1px); }
+      --bg: #111;
+      --fg: #eee;
+      --bubble-user: #444;
+      --bubble-ai: #222;
+      --accent: #777;
+      --modal-bg: rgba(0,0,0,0.6);
+      --shadow: 0 10px 25px rgba(0,0,0,0.35);
 
-    #chat { flex:1; overflow-y:auto; padding:20px; scroll-behavior:smooth; }
-    .msg-wrapper { margin-bottom:14px; position:relative; }
+      /* Sidebar animation */
+      --sidebar-width: 20%;
+      --sidebar-min: 220px;
+      --sidebar-max: 360px;
+    }
+
+    body.light {
+      --bg: #f5f5f5;
+      --fg: #111;
+      --bubble-user: #ddd;
+      --bubble-ai: #ccc;
+      --accent: #666;
+      --modal-bg: rgba(255,255,255,0.6);
+      --shadow: 0 10px 25px rgba(0,0,0,0.18);
+    }
+
+    /* ============================================
+       GLOBAL
+    ============================================ */
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      transition: background .3s, color .3s;
+    }
+
+    #app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ============================================
+       SIDEBAR (desktop collapsible + mobile drawer)
+    ============================================ */
+    #sidebar {
+      background: var(--bg);
+      color: var(--fg);
+      border-right: 1px solid var(--accent);
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-min);
+      max-width: var(--sidebar-max);
+      display: flex;
+      flex-direction: column;
+
+      /* Fade + slide animation */
+      transition:
+        transform .28s ease,
+        opacity .28s ease,
+        width .28s ease;
+    }
+
+    /* Collapsed sidebar (desktop) */
+    body.sidebar-collapsed #sidebar {
+      transform: translateX(-100%);
+      opacity: 0;
+      width: 0;
+      min-width: 0;
+      max-width: 0;
+    }
+
+    /* Mobile drawer */
+    @media (max-width: 768px) {
+      #sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: -100%;
+        z-index: 30;
+        width: 70%;
+        max-width: 300px;
+        min-width: 0;
+      }
+      body.sidebar-open #sidebar {
+        left: 0;
+      }
+    }
+
+    /* Sidebar header */
+    #sidebar-header {
+      padding: 10px;
+      border-bottom: 1px solid var(--accent);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    #sidebar-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      opacity: .8;
+    }
+
+    #newChatBtn {
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: none;
+      background: var(--bubble-user);
+      color: var(--fg);
+      font-size: 12px;
+      transition: background .2s;
+    }
+    #newChatBtn:hover {
+      background: var(--accent);
+    }
+
+    #chatList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .chat-item {
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: transparent;
+      color: var(--fg);
+      transition: background .2s;
+    }
+
+    .chat-item.active {
+      background: var(--bubble-user);
+    }
+
+    .chat-item:hover {
+      background: var(--bubble-ai);
+    }
+
+    .chat-title {
+      flex: 1;
+      margin-right: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .chat-action-btn {
+      border: none;
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+      font-size: 12px;
+      opacity: .7;
+      transition: opacity .2s;
+    }
+    .chat-action-btn:hover {
+      opacity: 1;
+    }
+
+    /* ============================================
+       MAIN AREA
+    ============================================ */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: margin-left .28s ease;
+    }
+
+    /* Shift main content when sidebar collapses (desktop only) */
+    @media (min-width: 769px) {
+      body.sidebar-collapsed #main {
+        margin-left: 0;
+      }
+    }
+
+    /* ============================================
+       TOP BAR
+    ============================================ */
+    #topbar {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--accent);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    .top-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #sidebarToggle {
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--bubble-user);
+      color: var(--fg);
+      border: none;
+      font-size: 13px;
+      transition: background .25s, transform .15s;
+    }
+    #sidebarToggle:hover {
+      background: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    #title {
+      font-weight: 500;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      font-size: 13px;
+      opacity: .8;
+    }
+
+    .top-btn {
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--bubble-user);
+      color: var(--fg);
+      border: none;
+      font-size: 13px;
+      margin-left: 8px;
+      transition: background .25s, transform .15s;
+    }
+    .top-btn:hover {
+      background: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .top-select {
+      background: var(--bubble-user);
+      color: var(--fg);
+      border: none;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .status-dot {
+      font-size: 18px;
+      margin-right: 4px;
+    }
+
+    /* ============================================
+       CHAT AREA
+    ============================================ */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      scroll-behavior: smooth;
+    }
+
+    .msg-wrapper {
+      margin-bottom: 14px;
+      position: relative;
+    }
 
     .msg {
-      padding:12px 16px; border-radius:14px; max-width:70%;
-      line-height:1.5; white-space:pre-wrap; opacity:0;
-      transform:translateY(8px); animation:fadeIn .22s forwards ease-out;
-      font-size:15px; cursor:default; transition:filter .15s;
+      padding: 12px 16px;
+      border-radius: 14px;
+      max-width: 70%;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      opacity: 0;
+      transform: translateY(8px);
+      animation: fadeIn .22s forwards ease-out;
+      font-size: 15px;
+      cursor: default;
+      transition: filter .15s;
     }
-    .msg.clickable:hover { filter:brightness(1.08); }
-    .user { background:var(--bubble-user); margin-left:auto; }
-    .assistant { background:var(--bubble-ai); margin-right:auto; }
 
-    @keyframes fadeIn { to { opacity:1; transform:translateY(0); } }
+    .msg.clickable:hover {
+      filter: brightness(1.08);
+    }
 
+    .user {
+      background: var(--bubble-user);
+      margin-left: auto;
+    }
+
+    .assistant {
+      background: var(--bubble-ai);
+      margin-right: auto;
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ============================================
+       INPUT BAR
+    ============================================ */
     #inputBar {
-      display:flex; padding:12px; border-top:1px solid var(--accent);
-      gap:10px; align-items:center;
+      display: flex;
+      padding: 12px;
+      border-top: 1px solid var(--accent);
+      gap: 10px;
+      align-items: center;
+      background: var(--bg);
     }
+
     #input {
-      flex:1; padding:12px; border-radius:999px; border:none;
-      background:var(--bubble-ai); color:var(--fg);
-      font-size:15px; outline:none; transition:box-shadow .2s;
+      flex: 1;
+      padding: 12px;
+      border-radius: 999px;
+      border: none;
+      background: var(--bubble-ai);
+      color: var(--fg);
+      font-size: 15px;
+      outline: none;
+      transition: box-shadow .2s;
     }
-    #input:focus { box-shadow:0 0 0 1px var(--accent); }
+    #input:focus {
+      box-shadow: 0 0 0 1px var(--accent);
+    }
 
     #send {
-      padding:10px 18px; background:var(--bubble-user); border:none;
-      border-radius:999px; color:var(--fg); cursor:pointer;
-      font-size:14px; transition:background .2s,transform .15s;
+      padding: 10px 18px;
+      background: var(--bubble-user);
+      border: none;
+      border-radius: 999px;
+      color: var(--fg);
+      cursor: pointer;
+      font-size: 14px;
+      transition: background .2s, transform .15s;
     }
-    #send:hover:enabled { background:var(--accent); transform:translateY(-1px); }
-    #send:disabled { opacity:.6; cursor:default; transform:none; }
+    #send:hover:enabled {
+      background: var(--accent);
+      transform: translateY(-1px);
+    }
+    #send:disabled {
+      opacity: .6;
+      cursor: default;
+      transform: none;
+    }
 
+    /* ============================================
+       MODAL
+    ============================================ */
     #modalOverlay {
-      position:fixed; inset:0; background:var(--modal-bg);
-      display:none; justify-content:center; align-items:center; z-index:20;
+      position: fixed;
+      inset: 0;
+      background: var(--modal-bg);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
     }
+
     #modal {
-      background:var(--bg); padding:20px; border-radius:12px;
-      width:320px; border:1px solid var(--accent);
-    }
-    #modal h2 { margin:0 0 12px; font-size:18px; }
-    #tokenInput,#editPromptInput,#editAssistantInput {
-      width:100%; padding:10px; border-radius:8px; border:none;
-      background:var(--bubble-ai); color:var(--fg);
-      margin-bottom:12px; resize:vertical; min-height:40px;
-    }
-    #saveToken,#saveEditPrompt,#saveEditAssistant {
-      width:100%; padding:10px; border-radius:8px; border:none;
-      background:var(--bubble-user); color:var(--fg); cursor:pointer;
-      font-size:14px;
-    }
-    #saveToken:hover,#saveEditPrompt:hover,#saveEditAssistant:hover {
-      background:var(--accent);
+      background: var(--bg);
+      padding: 20px;
+      border-radius: 12px;
+      width: 320px;
+      border: 1px solid var(--accent);
     }
 
-    .action-card,.user-action-card,.delete-card {
-      margin-top:6px; padding:8px 10px; border-radius:10px;
-      background:var(--bg); box-shadow:var(--shadow);
-      opacity:0; transform:translateY(-4px); pointer-events:none;
-      transition:opacity .18s,transform .18s; max-width:70%;
-    }
-    .assistant-card { margin-right:auto; }
-    .user-card { margin-left:auto; }
-    .action-card.visible,.user-action-card.visible,.delete-card.visible {
-      opacity:1; transform:translateY(4px); pointer-events:auto;
+    #modal h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
     }
 
-    .action-buttons,.delete-buttons {
-      display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap;
-    }
-    .action-btn,.delete-btn {
-      padding:4px 10px; border-radius:999px; border:none;
-      background:var(--bubble-user); color:var(--fg);
-      font-size:12px; cursor:pointer; transition:background .2s,transform .15s;
-    }
-    .action-btn:hover,.delete-btn:hover {
-      background:var(--accent); transform:translateY(-1px);
+    #tokenInput,
+    #editPromptInput,
+    #editAssistantInput {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: var(--bubble-ai);
+      color: var(--fg);
+      margin-bottom: 12px;
+      resize: vertical;
+      min-height: 40px;
     }
 
-    .version-bar { font-size:12px; display:flex; align-items:center; gap:8px; }
+    #saveToken,
+    #saveEditPrompt,
+    #saveEditAssistant {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: var(--bubble-user);
+      color: var(--fg);
+      cursor: pointer;
+      font-size: 14px;
+      transition: background .2s;
+    }
+    #saveToken:hover,
+    #saveEditPrompt:hover,
+    #saveEditAssistant:hover {
+      background: var(--accent);
+    }
+
+    /* ============================================
+       ACTION CARDS (edit, delete, regenerate)
+    ============================================ */
+    .action-card,
+    .user-action-card,
+    .delete-card {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: var(--bg);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition: opacity .18s, transform .18s;
+      max-width: 70%;
+    }
+
+    .assistant-card {
+      margin-right: auto;
+    }
+
+    .user-card {
+      margin-left: auto;
+    }
+
+    .action-card.visible,
+    .user-action-card.visible,
+    .delete-card.visible {
+      opacity: 1;
+      transform: translateY(4px);
+      pointer-events: auto;
+    }
+
+    .action-buttons,
+    .delete-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .action-btn,
+    .delete-btn {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: none;
+      background: var(--bubble-user);
+      color: var(--fg);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .2s, transform .15s;
+    }
+
+    .action-btn:hover,
+    .delete-btn:hover {
+      background: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .version-bar {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .version-arrow {
-      cursor:pointer; padding:2px 6px; border-radius:999px;
-      background:var(--bubble-ai); user-select:none;
-      transition:background .2s,transform .15s;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--bubble-ai);
+      user-select: none;
+      transition: background .2s, transform .15s;
     }
-    .version-arrow:hover { background:var(--accent); transform:translateY(-1px); }
-    .version-arrow.disabled { opacity:.4; cursor:default; transform:none; }
-    .version-label { opacity:.8; }
 
-    .delete-text { font-size:13px; margin-bottom:6px; opacity:.9; }
+    .version-arrow:hover {
+      background: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .version-arrow.disabled {
+      opacity: .4;
+      cursor: default;
+      transform: none;
+    }
+
+    .version-label {
+      opacity: .8;
+    }
+
+    .delete-text {
+      font-size: 13px;
+      margin-bottom: 6px;
+      opacity: .9;
+    }
 
     .streaming-disabled {
-      pointer-events:none;
-      opacity:0.4;
+      pointer-events: none;
+      opacity: 0.4;
     }
   </style>
 </head>
-
 <body>
-  <div id="topbar">
-    <span id="title">LM Studio Chat</span>
-    <div>
-      <button id="settingsBtn" class="top-btn">⚙️ Settings</button>
-      <button id="themeToggle" class="top-btn">Dark / Light</button>
+  <div id="app">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <span id="sidebar-title">Chats</span>
+        <button id="newChatBtn">+ New</button>
+      </div>
+      <div id="chatList"></div>
+    </div>
+
+    <!-- Main -->
+    <div id="main">
+      <!-- Top bar -->
+      <div id="topbar">
+        <div class="top-left">
+          <button id="sidebarToggle">☰</button>
+          <span id="title">LM Studio Chat</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span id="modelStatus" class="status-dot">●</span>
+          <select id="modelSelector" class="top-select"></select>
+          <button id="healthCheckBtn" class="top-btn">Check</button>
+          <button id="stopBtn" class="top-btn">Stop</button>
+          <button id="settingsBtn" class="top-btn">⚙️</button>
+          <button id="themeToggle" class="top-btn">Dark / Light</button>
+        </div>
+      </div>
+
+      <!-- Chat area -->
+      <div id="chat"></div>
+
+      <!-- Input bar -->
+      <div id="inputBar">
+        <input id="input" placeholder="Say something…" autocomplete="off" />
+        <button id="send">Send</button>
+      </div>
     </div>
   </div>
 
-  <div id="chat"></div>
-
-  <div id="inputBar">
-    <input id="input" placeholder="Say something…" autocomplete="off" />
-    <button id="send">Send</button>
-  </div>
-
+  <!-- Modal -->
   <div id="modalOverlay">
     <div id="modal"></div>
   </div>
 
-<script>
-/* =========================
-   CONFIG
-========================= */
-const API_URL = "https://book5-de-rai.tail38c04a.ts.net/v1/chat/completions";
-const MODEL = "google/gemma-3n-e4b";
+  <script>
+    /* =========================
+       CONFIG & GLOBAL STATE
+    ========================== */
+    const WS_URL =
+      window.location.hostname.endsWith(".ts.net")
+        ? `wss://${window.location.hostname}`
+        : "ws://localhost:3000";
 
-let API_TOKEN = localStorage.getItem("lmstudio_token") || "";
+    let MODEL = null;
+    let API_TOKEN = localStorage.getItem("lmstudio_token") || "";
+    let SAVED_MODEL = localStorage.getItem("lmstudio_model") || "";
 
-/* =========================
-   DOM
-========================= */
-const chat = document.getElementById("chat");
-const input = document.getElementById("input");
-const send = document.getElementById("send");
-const themeToggle = document.getElementById("themeToggle");
-const settingsBtn = document.getElementById("settingsBtn");
-const modalOverlay = document.getElementById("modalOverlay");
-const modal = document.getElementById("modal");
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("input");
+    const send = document.getElementById("send");
+    const themeToggle = document.getElementById("themeToggle");
+    const settingsBtn = document.getElementById("settingsBtn");
+    const modalOverlay = document.getElementById("modalOverlay");
+    const modal = document.getElementById("modal");
+    const sidebar = document.getElementById("sidebar");
+    const chatListEl = document.getElementById("chatList");
+    const newChatBtn = document.getElementById("newChatBtn");
+    const sidebarToggle = document.getElementById("sidebarToggle");
+    const modelSelector = document.getElementById("modelSelector");
+    const modelStatus = document.getElementById("modelStatus");
+    const healthCheckBtn = document.getElementById("healthCheckBtn");
+    const stopBtn = document.getElementById("stopBtn");
 
-/* =========================
-   STATE
-========================= */
-// user:      { role:'user', content:string }
-// assistant: { role:'assistant', versions:[{content:string}], currentVersion:number, userIndex:number }
-const messages = [];
-let abortController = null;
-let isStreaming = false;
+    // chats: { [id]: { id, title, messages: [...] } }
+    let chats = {};
+    let currentChatId = null;
 
-/* =========================
-   THEME + SETTINGS
-========================= */
-themeToggle.onclick = () => document.body.classList.toggle("light");
-settingsBtn.onclick = () => openTokenModal();
+    // messages: user / assistant with versions
+    let messages = [];
 
-function openTokenModal() {
-  modal.innerHTML = `
-    <h2>API Token</h2>
-    <textarea id="tokenInput"></textarea>
-    <button id="saveToken">Save</button>
-  `;
-  const t = modal.querySelector("#tokenInput");
-  const s = modal.querySelector("#saveToken");
-  t.value = API_TOKEN;
-  s.onclick = () => {
-    API_TOKEN = t.value.trim();
-    localStorage.setItem("lmstudio_token", API_TOKEN);
-    modalOverlay.style.display = "none";
-  };
-  modalOverlay.style.display = "flex";
-}
+    let isStreaming = false;
 
-modalOverlay.onclick = e => {
-  if (e.target === modalOverlay) modalOverlay.style.display = "none";
-};
+    /* =========================
+       WEBSOCKET
+    ========================== */
+    let ws = null;
+    let wsReady = false;
 
-/* =========================
-   RENDERING
-========================= */
-function addMessageElement(content, role, index, versionIndex = null) {
-  const wrap = document.createElement("div");
-  wrap.className = "msg-wrapper";
-
-  const div = document.createElement("div");
-  div.className = "msg " + (role === "user" ? "user" : "assistant");
-  div.classList.add("clickable");
-  div.dataset.messageIndex = index;
-  if (versionIndex !== null) div.dataset.versionIndex = versionIndex;
-  div.innerHTML = marked.parse(content || "");
-  wrap.appendChild(div);
-
-  if (role === "assistant") {
-    const card = document.createElement("div");
-    card.className = "action-card assistant-card";
-    card.dataset.messageIndex = index;
-    card.innerHTML = `
-      <div class="action-buttons">
-        <button class="action-btn" data-action="continue">Continue</button>
-        <button class="action-btn" data-action="regenerate">Regenerate</button>
-        <button class="action-btn" data-action="editAssistant">Edit</button>
-      </div>
-      <div class="version-bar">
-        <span class="version-arrow" data-dir="prev">&lt;</span>
-        <span class="version-label">1 / 1</span>
-        <span class="version-arrow" data-dir="next">&gt;</span>
-      </div>
-    `;
-    wrap.appendChild(card);
-  }
-
-  if (role === "user") {
-    const card = document.createElement("div");
-    card.className = "user-action-card user-card";
-    card.dataset.messageIndex = index;
-    card.innerHTML = `
-      <div class="action-buttons">
-        <button class="action-btn" data-user-action="editUser">Edit</button>
-        <button class="action-btn" data-user-action="delete">Delete</button>
-      </div>
-    `;
-    wrap.appendChild(card);
-  }
-
-  chat.appendChild(wrap);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-function renderMessages() {
-  chat.innerHTML = "";
-  messages.forEach((m, i) => {
-    if (m.role === "user") {
-      addMessageElement(m.content, "user", i);
-    } else {
-      const v = m.versions[m.currentVersion];
-      addMessageElement(v.content, "assistant", i, m.currentVersion);
-      updateActionCard(i);
-    }
-  });
-}
-
-function updateActionCard(i) {
-  const msg = messages[i];
-  if (!msg || msg.role !== "assistant") return;
-
-  const wrap = [...chat.querySelectorAll(".msg-wrapper")].find(w =>
-    w.querySelector(".action-card")?.dataset.messageIndex == i
-  );
-  if (!wrap) return;
-
-  const card = wrap.querySelector(".action-card");
-  const label = card.querySelector(".version-label");
-  const prev = card.querySelector('[data-dir="prev"]');
-  const next = card.querySelector('[data-dir="next"]');
-
-  const total = msg.versions.length;
-  const current = msg.currentVersion + 1;
-
-  label.textContent = `${current} / ${total}`;
-  prev.classList.toggle("disabled", msg.currentVersion === 0);
-  next.classList.toggle("disabled", msg.currentVersion === total - 1);
-}
-
-function hideAllCards() {
-  document.querySelectorAll(".action-card,.user-action-card,.delete-card")
-    .forEach(c => c.classList.remove("visible"));
-}
-
-/* disable/enable controls during streaming */
-function setStreamingDisabled(state) {
-  document.querySelectorAll(".action-card, .user-action-card, .version-arrow")
-    .forEach(el => {
-      if (state) el.classList.add("streaming-disabled");
-      else el.classList.remove("streaming-disabled");
-    });
-}
-
-/* =========================
-   HISTORY HELPERS
-========================= */
-function buildHistoryUntil(indexInclusive) {
-  const arr = [];
-  for (let i = 0; i <= indexInclusive; i++) {
-    const m = messages[i];
-    if (m.role === "user") {
-      arr.push({ role: "user", content: m.content });
-    } else {
-      const v = m.versions[m.currentVersion];
-      arr.push({ role: "assistant", content: v.content });
-    }
-  }
-  return arr;
-}
-
-function findUserIndexForAssistant(assistantIndex) {
-  for (let i = assistantIndex - 1; i >= 0; i--) {
-    if (messages[i].role === "user") return i;
-  }
-  return null;
-}
-
-/* =========================
-   CLICK HANDLING
-========================= */
-chat.addEventListener("click", e => {
-  const assistantMsg = e.target.closest(".msg.assistant");
-  const userMsg = e.target.closest(".msg.user");
-  const actionCard = e.target.closest(".action-card");
-  const userCard = e.target.closest(".user-action-card");
-  const deleteCard = e.target.closest(".delete-card");
-  const arrow = e.target.closest(".version-arrow");
-  const actionBtn = e.target.closest(".action-btn");
-  const deleteBtn = e.target.closest(".delete-btn");
-
-  if (assistantMsg && !actionCard && !arrow && !actionBtn) {
-    const i = assistantMsg.dataset.messageIndex;
-    hideAllCards();
-    document.querySelectorAll(".action-card").forEach(c => {
-      if (c.dataset.messageIndex == i) c.classList.add("visible");
-    });
-    return;
-  }
-
-  if (userMsg && !userCard && !actionBtn && !deleteBtn && !deleteCard) {
-    const i = userMsg.dataset.messageIndex;
-    hideAllCards();
-    document.querySelectorAll(".user-action-card").forEach(c => {
-      if (c.dataset.messageIndex == i) c.classList.add("visible");
-    });
-    return;
-  }
-
-  if (actionBtn && actionBtn.dataset.action) {
-    const i = Number(actionBtn.closest(".action-card").dataset.messageIndex);
-    if (actionBtn.dataset.action === "continue") continueFromAssistant(i);
-    if (actionBtn.dataset.action === "regenerate") regenerateAssistant(i);
-    if (actionBtn.dataset.action === "editAssistant") openEditAssistantModal(i);
-    return;
-  }
-
-  if (actionBtn && actionBtn.dataset.userAction) {
-    const i = Number(actionBtn.closest(".user-action-card").dataset.messageIndex);
-    if (actionBtn.dataset.userAction === "editUser") openEditUserModal(i);
-    if (actionBtn.dataset.userAction === "delete") showDeleteConfirm(i);
-    return;
-  }
-
-  if (arrow) {
-    const i = Number(arrow.closest(".action-card").dataset.messageIndex);
-    switchVersion(i, arrow.dataset.dir === "prev" ? -1 : 1);
-    return;
-  }
-
-  if (deleteBtn) {
-    const i = Number(deleteBtn.closest(".delete-card").dataset.messageIndex);
-    if (deleteBtn.dataset.type === "cancel")
-      deleteBtn.closest(".delete-card").classList.remove("visible");
-    else deleteFromIndex(i);
-    return;
-  }
-
-  hideAllCards();
-});
-
-/* =========================
-   DELETE
-========================= */
-function showDeleteConfirm(i) {
-  const wrap = [...chat.querySelectorAll(".msg-wrapper")].find(w =>
-    w.querySelector(".user-action-card")?.dataset.messageIndex == i
-  );
-  let d = wrap.querySelector(".delete-card");
-  if (!d) {
-    d = document.createElement("div");
-    d.className = "delete-card user-card";
-    d.dataset.messageIndex = i;
-    d.innerHTML = `
-      <div class="delete-text">
-        Delete this message?<br/>This will also remove all messages after it.
-      </div>
-      <div class="delete-buttons">
-        <button class="delete-btn" data-type="cancel">Cancel</button>
-        <button class="delete-btn" data-type="confirm">Delete</button>
-      </div>
-    `;
-    wrap.appendChild(d);
-  }
-  d.classList.add("visible");
-}
-
-function deleteFromIndex(i) {
-  messages.splice(i);
-  renderMessages();
-}
-
-/* =========================
-   VERSION SWITCHING
-========================= */
-function switchVersion(i, delta) {
-  const m = messages[i];
-  if (!m || m.role !== "assistant") return;
-  const nv = m.currentVersion + delta;
-  if (nv < 0 || nv >= m.versions.length) return;
-  m.currentVersion = nv;
-  renderMessages();
-}
-
-/* =========================
-   EDIT USER
-========================= */
-function openEditUserModal(userIndex) {
-  const msg = messages[userIndex];
-  if (!msg || msg.role !== "user") return;
-
-  modal.innerHTML = `
-    <h2>Edit Message</h2>
-    <textarea id="editPromptInput"></textarea>
-    <button id="saveEditPrompt">Save</button>
-  `;
-  const t = modal.querySelector("#editPromptInput");
-  const s = modal.querySelector("#saveEditPrompt");
-  t.value = msg.content || "";
-
-  s.onclick = () => {
-    const newText = t.value;
-    msg.content = newText;          // just update text
-    modalOverlay.style.display = "none";
-    renderMessages();               // keep everything after
-  };
-
-  modalOverlay.style.display = "flex";
-}
-
-/* =========================
-   EDIT ASSISTANT (in place)
-========================= */
-function openEditAssistantModal(assistantIndex) {
-  const msg = messages[assistantIndex];
-  if (!msg || msg.role !== "assistant") return;
-
-  const currentVersionIndex = msg.currentVersion;
-  const current = msg.versions[currentVersionIndex];
-
-  modal.innerHTML = `
-    <h2>Edit Assistant Reply</h2>
-    <textarea id="editAssistantInput"></textarea>
-    <button id="saveEditAssistant">Save</button>
-  `;
-  const t = modal.querySelector("#editAssistantInput");
-  const s = modal.querySelector("#saveEditAssistant");
-  t.value = current.content || "";
-
-  s.onclick = () => {
-    const newText = t.value;
-    msg.versions[currentVersionIndex].content = newText;  // edit in place
-    modalOverlay.style.display = "none";
-    renderMessages();
-  };
-
-  modalOverlay.style.display = "flex";
-}
-
-/* =========================
-   TOKEN CHECK
-========================= */
-async function ensureToken() {
-  if (!API_TOKEN) {
-    openTokenModal();
-    return false;
-  }
-  return true;
-}
-
-/* =========================
-   STREAMING
-========================= */
-async function streamAssistantReply({ history, assistantIndex, versionIndex }) {
-  const ok = await ensureToken();
-  if (!ok) return;
-
-  let aiBubble = null;
-  document.querySelectorAll(".msg-wrapper").forEach(w => {
-    const m = w.querySelector(".msg.assistant");
-    if (m && Number(m.dataset.messageIndex) === assistantIndex) aiBubble = m;
-  });
-
-  send.disabled = false;
-  send.textContent = "⏸ Stop";
-  isStreaming = true;
-  abortController = new AbortController();
-  setStreamingDisabled(true);
-
-  let rawText = messages[assistantIndex].versions[versionIndex].content || "";
-
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + API_TOKEN
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: history,
-        stream: true
-      }),
-      signal: abortController.signal
-    });
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      let lines = buffer.split("\n");
-      buffer = lines.pop();
-
-      for (let line of lines) {
-        line = line.trim();
-        if (!line.startsWith("data:")) continue;
-        const json = line.slice(5).trim();
-        if (!json || json === "[DONE]") continue;
-
-        try {
-          const event = JSON.parse(json);
-          const delta = event.choices?.[0]?.delta?.content;
-          if (delta) {
-            rawText += delta;
-            messages[assistantIndex].versions[versionIndex].content = rawText;
-            if (aiBubble) {
-              aiBubble.innerHTML = marked.parse(rawText);
-              chat.scrollTop = chat.scrollHeight;
-            }
-          }
-        } catch (err) {
-          console.error("SSE parse error:", err);
-        }
+    function setStatusDot(state) {
+      // state: "online", "processing", "offline", "warning"
+      if (state === "online") {
+        modelStatus.style.color = "#4caf50";
+      } else if (state === "processing") {
+        modelStatus.style.color = "#ffeb3b";
+      } else if (state === "warning") {
+        modelStatus.style.color = "#ff9800";
+      } else {
+        modelStatus.style.color = "#f44336";
       }
     }
-  } catch (err) {
-    console.error("Stream error:", err);
-  } finally {
-    isStreaming = false;
-    abortController = null;
-    send.disabled = false;
-    send.textContent = "Send";
-    setStreamingDisabled(false);
-    renderMessages();
-  }
-}
 
-/* =========================
-   SEND / CONTINUE / REGENERATE
-========================= */
-async function sendNewUserMessage(text) {
-  const trimmed = text.trim();
-  if (!trimmed) return;
-  if (!await ensureToken()) return;
+    function connectWS() {
+      try {
+        ws = new WebSocket(WS_URL);
+      } catch (e) {
+        console.error("WS connect error:", e);
+        setStatusDot("offline");
+        return;
+      }
 
-  messages.push({ role: "user", content: trimmed });
-  const userIndex = messages.length - 1;
+      ws.onopen = () => {
+        wsReady = true;
+        setStatusDot("online");
+        console.log("WS connected — requesting models");
+        ws.send(JSON.stringify({ type: "models", token: API_TOKEN }));
+      };
 
-  messages.push({
-    role: "assistant",
-    versions: [{ content: "" }],
-    currentVersion: 0,
-    userIndex
-  });
-  const assistantIndex = messages.length - 1;
+      ws.onclose = () => {
+        wsReady = false;
+        setStatusDot("offline");
+        console.log("WS closed, retrying in 2s");
+        setTimeout(connectWS, 2000);
+      };
 
-  renderMessages();
-  input.value = "";
-  input.focus();
+      ws.onerror = (e) => {
+        console.error("WS error:", e);
+        setStatusDot("offline");
+      };
 
-  const history = buildHistoryUntil(userIndex);
-  streamAssistantReply({ history, assistantIndex, versionIndex: 0 });
-}
-
-function continueFromAssistant(assistantIndex) {
-  const msg = messages[assistantIndex];
-  if (!msg || msg.role !== "assistant") return;
-
-  const versionIndex = msg.currentVersion;
-  const history = buildHistoryUntil(assistantIndex);
-  history.push({ role: "user", content: "Continue." });
-
-  streamAssistantReply({ history, assistantIndex, versionIndex });
-}
-
-function regenerateAssistant(assistantIndex) {
-  const msg = messages[assistantIndex];
-  if (!msg || msg.role !== "assistant") return;
-
-  const userIdx = findUserIndexForAssistant(assistantIndex);
-  if (userIdx === null) return;
-
-  const newVersionIndex = msg.versions.length;
-  msg.versions.push({ content: "" });
-  msg.currentVersion = newVersionIndex;
-
-  renderMessages();
-
-  const history = buildHistoryUntil(userIdx);
-  streamAssistantReply({ history, assistantIndex, versionIndex: newVersionIndex });
-}
-
-/* =========================
-   SEND BUTTON / ENTER KEY
-========================= */
-send.onclick = () => {
-  if (isStreaming && abortController) {
-    abortController.abort();
-    isStreaming = false;
-    abortController = null;
-    send.disabled = false;
-    send.textContent = "Send";
-    setStreamingDisabled(false);
-  } else {
-    sendNewUserMessage(input.value);
-  }
-};
-
-input.onkeydown = e => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    if (isStreaming && abortController) {
-      abortController.abort();
-      isStreaming = false;
-      abortController = null;
-      send.disabled = false;
-      send.textContent = "Send";
-      setStreamingDisabled(false);
-    } else {
-      sendNewUserMessage(input.value);
+      ws.onmessage = (event) => handleWSMessage(event);
     }
-  }
-};
-</script>
+
+    connectWS();
+  </script>
+  <script>
+    /* =========================
+       WEBSOCKET MESSAGE HANDLER
+    ========================== */
+    function handleWSMessage(event) {
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (e) {
+        console.error("Invalid WS JSON:", e, event.data);
+        return;
+      }
+
+      if (data.type === "models") {
+        const models = Array.isArray(data.models) ? data.models.filter(Boolean) : [];
+        console.log("Models received:", models);
+        populateModelSelector(models);
+        if (!models.length) setStatusDot("warning");
+        return;
+      }
+
+      if (data.type === "health") {
+        console.log("Health:", data);
+        if (data.lmstudio === "ok") {
+          setStatusDot("online");
+        } else if (data.lmstudio === "no-models") {
+          setStatusDot("warning");
+        } else {
+          setStatusDot("offline");
+        }
+        return;
+      }
+
+      if (data.type === "delta") {
+        const { assistantIndex, versionIndex, delta } = data;
+        const msg = messages[assistantIndex];
+        if (!msg || msg.role !== "assistant") return;
+
+        let rawText = msg.versions[versionIndex].content || "";
+        rawText += delta;
+        msg.versions[versionIndex].content = rawText;
+
+        document.querySelectorAll(".msg-wrapper").forEach(w => {
+          const m = w.querySelector(".msg.assistant");
+          if (m && Number(m.dataset.messageIndex) === assistantIndex) {
+            m.innerHTML = marked.parse(rawText);
+          }
+        });
+        chat.scrollTop = chat.scrollHeight;
+        return;
+      }
+
+      if (data.type === "done") {
+        isStreaming = false;
+        send.disabled = false;
+        send.textContent = "Send";
+        stopBtn.disabled = true;
+        setStreamingDisabled(false);
+        setStatusDot("online");
+        saveChats();
+        renderMessages();
+        return;
+      }
+
+      if (data.type === "stopped") {
+        isStreaming = false;
+        send.disabled = false;
+        send.textContent = "Send";
+        stopBtn.disabled = true;
+        setStreamingDisabled(false);
+        setStatusDot("online");
+        console.log("Generation stopped by user");
+        return;
+      }
+
+      if (data.type === "error") {
+        console.error("Proxy error:", data.message);
+        isStreaming = false;
+        send.disabled = false;
+        send.textContent = "Send";
+        stopBtn.disabled = true;
+        setStreamingDisabled(false);
+        setStatusDot("offline");
+        return;
+      }
+    }
+
+    /* =========================
+       MODEL SELECTOR
+    ========================== */
+    function populateModelSelector(models) {
+      modelSelector.innerHTML = "";
+      if (!models.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No models";
+        modelSelector.appendChild(opt);
+        MODEL = null;
+        localStorage.removeItem("lmstudio_model");
+        return;
+      }
+
+      models.forEach(id => {
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = id;
+        modelSelector.appendChild(opt);
+      });
+
+      const saved = localStorage.getItem("lmstudio_model");
+      if (saved && models.includes(saved)) {
+        MODEL = saved;
+      } else {
+        MODEL = models[0];
+        localStorage.setItem("lmstudio_model", MODEL);
+      }
+      modelSelector.value = MODEL;
+      setStatusDot("online");
+    }
+
+    modelSelector.onchange = () => {
+      MODEL = modelSelector.value || null;
+      if (MODEL) {
+        localStorage.setItem("lmstudio_model", MODEL);
+      } else {
+        localStorage.removeItem("lmstudio_model");
+      }
+    };
+
+    /* =========================
+       THEME + SETTINGS
+    ========================== */
+    themeToggle.onclick = () => {
+      document.body.classList.toggle("light");
+    };
+
+    settingsBtn.onclick = () => openTokenModal();
+
+    function openTokenModal() {
+      modal.innerHTML = `
+        <h2>API Token</h2>
+        <textarea id="tokenInput"></textarea>
+        <button id="saveToken">Save</button>
+      `;
+      const t = modal.querySelector("#tokenInput");
+      const s = modal.querySelector("#saveToken");
+      t.value = API_TOKEN;
+      s.onclick = () => {
+        API_TOKEN = t.value.trim();
+        localStorage.setItem("lmstudio_token", API_TOKEN);
+        modalOverlay.style.display = "none";
+      };
+      modalOverlay.style.display = "flex";
+    }
+
+    modalOverlay.onclick = e => {
+      if (e.target === modalOverlay) modalOverlay.style.display = "none";
+    };
+
+    /* =========================
+       HEALTH CHECK BUTTON
+    ========================== */
+    healthCheckBtn.onclick = () => {
+      if (!wsReady) {
+        alert("WebSocket not connected.");
+        return;
+      }
+      ws.send(JSON.stringify({ type: "health", token: API_TOKEN }));
+      setStatusDot("processing");
+    };
+
+    /* =========================
+       STOP GENERATION BUTTON
+    ========================== */
+    stopBtn.disabled = true;
+    stopBtn.onclick = () => {
+      if (!wsReady || !isStreaming) return;
+      ws.send(JSON.stringify({ type: "stop" }));
+      setStatusDot("processing");
+    };
+
+    /* =========================
+       CHAT PERSISTENCE
+    ========================== */
+    function loadChats() {
+      try {
+        const raw = localStorage.getItem("lmstudio_chats");
+        const current = localStorage.getItem("lmstudio_current_chat");
+        if (raw) {
+          chats = JSON.parse(raw);
+        } else {
+          chats = {};
+        }
+        if (current && chats[current]) {
+          currentChatId = current;
+        } else {
+          createNewChat();
+        }
+      } catch (e) {
+        console.error("loadChats error:", e);
+        chats = {};
+        createNewChat();
+      }
+      refreshChatList();
+      loadCurrentChatMessages();
+    }
+
+    function saveChats() {
+      try {
+        localStorage.setItem("lmstudio_chats", JSON.stringify(chats));
+        localStorage.setItem("lmstudio_current_chat", currentChatId);
+      } catch (e) {
+        console.error("saveChats error:", e);
+      }
+    }
+
+    function createNewChat() {
+      const id = "chat_" + Date.now();
+      chats[id] = {
+        id,
+        title: "New Chat",
+        messages: []
+      };
+      currentChatId = id;
+      messages = chats[id].messages;
+      saveChats();
+      refreshChatList();
+      renderMessages();
+    }
+
+    function loadCurrentChatMessages() {
+      if (!currentChatId || !chats[currentChatId]) return;
+      messages = chats[currentChatId].messages;
+      renderMessages();
+    }
+
+    function refreshChatList() {
+      chatListEl.innerHTML = "";
+      Object.values(chats).forEach(chatObj => {
+        const item = document.createElement("div");
+        item.className = "chat-item" + (chatObj.id === currentChatId ? " active" : "");
+        item.dataset.chatId = chatObj.id;
+
+        const titleSpan = document.createElement("span");
+        titleSpan.className = "chat-title";
+        titleSpan.textContent = chatObj.title || "Untitled";
+
+        const actions = document.createElement("div");
+        actions.className = "chat-actions";
+
+        const renameBtn = document.createElement("button");
+        renameBtn.className = "chat-action-btn";
+        renameBtn.textContent = "✎";
+        renameBtn.title = "Rename";
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "chat-action-btn";
+        deleteBtn.textContent = "🗑";
+        deleteBtn.title = "Delete";
+
+        actions.appendChild(renameBtn);
+        actions.appendChild(deleteBtn);
+
+        item.appendChild(titleSpan);
+        item.appendChild(actions);
+
+        titleSpan.onclick = () => switchChat(chatObj.id);
+        renameBtn.onclick = (e) => {
+          e.stopPropagation();
+          renameChat(chatObj.id);
+        };
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteChat(chatObj.id);
+        };
+
+        chatListEl.appendChild(item);
+      });
+    }
+
+    function switchChat(id) {
+      if (!chats[id]) return;
+      currentChatId = id;
+      messages = chats[id].messages;
+      saveChats();
+      refreshChatList();
+      renderMessages();
+      if (window.innerWidth <= 768) {
+        document.body.classList.remove("sidebar-open");
+      }
+    }
+
+    function renameChat(id) {
+      const chatObj = chats[id];
+      if (!chatObj) return;
+      const newTitle = prompt("Chat title:", chatObj.title || "Untitled");
+      if (newTitle !== null) {
+        chatObj.title = newTitle.trim() || "Untitled";
+        saveChats();
+        refreshChatList();
+      }
+    }
+
+    function deleteChat(id) {
+      if (!chats[id]) return;
+      if (!confirm("Delete this chat?")) return;
+      delete chats[id];
+      const keys = Object.keys(chats);
+      if (!keys.length) {
+        createNewChat();
+      } else {
+        currentChatId = keys[0];
+        messages = chats[currentChatId].messages;
+      }
+      saveChats();
+      refreshChatList();
+      renderMessages();
+    }
+
+    function autoTitleCurrentChat() {
+      const chatObj = chats[currentChatId];
+      if (!chatObj) return;
+      if (chatObj.title && chatObj.title !== "New Chat") return;
+
+      const firstUser = chatObj.messages.find(m => m.role === "user");
+      if (!firstUser) return;
+
+      let t = firstUser.content.trim().split("\n")[0];
+      if (t.length > 60) t = t.slice(0, 57) + "...";
+      chatObj.title = t || "New Chat";
+      saveChats();
+      refreshChatList();
+    }
+  </script>
+  <script>
+    /* =========================
+       SIDEBAR TOGGLE
+    ========================== */
+    newChatBtn.onclick = () => {
+      createNewChat();
+      if (window.innerWidth <= 768) {
+        document.body.classList.remove("sidebar-open");
+      }
+    };
+
+    sidebarToggle.onclick = () => {
+      if (window.innerWidth <= 768) {
+        document.body.classList.toggle("sidebar-open");
+      } else {
+        document.body.classList.toggle("sidebar-collapsed");
+      }
+    };
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 768) {
+        document.body.classList.remove("sidebar-open");
+      }
+    });
+
+    /* =========================
+       STREAMING DISABLE HELPER
+    ========================== */
+    function setStreamingDisabled(disabled) {
+      const cards = document.querySelectorAll(".action-card, .user-action-card, .delete-card");
+      cards.forEach(c => {
+        if (disabled) c.classList.add("streaming-disabled");
+        else c.classList.remove("streaming-disabled");
+      });
+    }
+
+    /* =========================
+       RENDER MESSAGES
+    ========================== */
+    function renderMessages() {
+      chat.innerHTML = "";
+      messages.forEach((msg, index) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "msg-wrapper";
+
+        if (msg.role === "user") {
+          const bubble = document.createElement("div");
+          bubble.className = "msg user clickable";
+          bubble.textContent = msg.content;
+          bubble.dataset.messageIndex = index;
+
+          const card = document.createElement("div");
+          card.className = "user-action-card user-card";
+          card.innerHTML = `
+            <div class="action-buttons">
+              <button class="action-btn" data-action="edit-user">Edit</button>
+              <button class="action-btn" data-action="delete-user">Delete</button>
+            </div>
+          `;
+
+          bubble.onclick = () => {
+            if (isStreaming) return;
+            card.classList.toggle("visible");
+          };
+
+          card.querySelectorAll(".action-btn").forEach(btn => {
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              const action = btn.dataset.action;
+              if (action === "edit-user") openEditUserModal(index);
+              if (action === "delete-user") openDeleteUserModal(index);
+            };
+          });
+
+          wrapper.appendChild(bubble);
+          wrapper.appendChild(card);
+        } else if (msg.role === "assistant") {
+          const version = msg.versions[msg.currentVersion] || { content: "" };
+          const bubble = document.createElement("div");
+          bubble.className = "msg assistant clickable";
+          bubble.dataset.messageIndex = index;
+          bubble.innerHTML = marked.parse(version.content || "");
+
+          const card = document.createElement("div");
+          card.className = "action-card assistant-card";
+          card.innerHTML = `
+            <div class="action-buttons">
+              <button class="action-btn" data-action="continue">Continue</button>
+              <button class="action-btn" data-action="regenerate">Regenerate</button>
+              <button class="action-btn" data-action="edit-assistant">Edit</button>
+              <button class="action-btn" data-action="delete-assistant">Delete</button>
+            </div>
+            <div class="version-bar">
+              <span class="version-arrow" data-dir="prev">◀</span>
+              <span class="version-label"></span>
+              <span class="version-arrow" data-dir="next">▶</span>
+            </div>
+          `;
+
+          const versionLabel = card.querySelector(".version-label");
+          const prevArrow = card.querySelector('[data-dir="prev"]');
+          const nextArrow = card.querySelector('[data-dir="next"]');
+
+          function updateVersionUI() {
+            const total = msg.versions.length;
+            const current = msg.currentVersion + 1;
+            versionLabel.textContent = `Version ${current} / ${total}`;
+            prevArrow.classList.toggle("disabled", msg.currentVersion === 0);
+            nextArrow.classList.toggle("disabled", msg.currentVersion === total - 1);
+          }
+          updateVersionUI();
+
+          prevArrow.onclick = (e) => {
+            e.stopPropagation();
+            if (msg.currentVersion > 0) {
+              msg.currentVersion--;
+              const v = msg.versions[msg.currentVersion];
+              bubble.innerHTML = marked.parse(v.content || "");
+              updateVersionUI();
+              saveChats();
+            }
+          };
+
+          nextArrow.onclick = (e) => {
+            e.stopPropagation();
+            if (msg.currentVersion < msg.versions.length - 1) {
+              msg.currentVersion++;
+              const v = msg.versions[msg.currentVersion];
+              bubble.innerHTML = marked.parse(v.content || "");
+              updateVersionUI();
+              saveChats();
+            }
+          };
+
+          bubble.onclick = () => {
+            if (isStreaming) return;
+            card.classList.toggle("visible");
+          };
+
+          card.querySelectorAll(".action-btn").forEach(btn => {
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              const action = btn.dataset.action;
+              if (action === "continue") continueAssistant(index);
+              if (action === "regenerate") regenerateAssistant(index);
+              if (action === "edit-assistant") openEditAssistantModal(index);
+              if (action === "delete-assistant") openDeleteAssistantModal(index);
+            };
+          });
+
+          wrapper.appendChild(bubble);
+          wrapper.appendChild(card);
+        }
+
+        chat.appendChild(wrapper);
+      });
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    /* =========================
+       EDIT / DELETE MODALS
+    ========================== */
+    function openEditUserModal(index) {
+      const msg = messages[index];
+      if (!msg || msg.role !== "user") return;
+      modal.innerHTML = `
+        <h2>Edit message</h2>
+        <textarea id="editPromptInput"></textarea>
+        <button id="saveEditPrompt">Save</button>
+      `;
+      const t = modal.querySelector("#editPromptInput");
+      const s = modal.querySelector("#saveEditPrompt");
+      t.value = msg.content;
+      s.onclick = () => {
+        msg.content = t.value.trim();
+        saveChats();
+        modalOverlay.style.display = "none";
+        renderMessages();
+      };
+      modalOverlay.style.display = "flex";
+    }
+
+    function openDeleteUserModal(index) {
+      modal.innerHTML = `
+        <h2>Delete message</h2>
+        <div class="delete-text">Delete this user message and its following assistant reply (if any)?</div>
+        <div class="delete-buttons">
+          <button class="delete-btn" id="confirmDeleteUser">Delete</button>
+          <button class="delete-btn" id="cancelDeleteUser">Cancel</button>
+        </div>
+      `;
+      const confirmBtn = modal.querySelector("#confirmDeleteUser");
+      const cancelBtn = modal.querySelector("#cancelDeleteUser");
+      confirmBtn.onclick = () => {
+        messages.splice(index, 1);
+        if (messages[index] && messages[index].role === "assistant") {
+          messages.splice(index, 1);
+        }
+        saveChats();
+        modalOverlay.style.display = "none";
+        renderMessages();
+      };
+      cancelBtn.onclick = () => {
+        modalOverlay.style.display = "none";
+      };
+      modalOverlay.style.display = "flex";
+    }
+
+    function openEditAssistantModal(index) {
+      const msg = messages[index];
+      if (!msg || msg.role !== "assistant") return;
+      const version = msg.versions[msg.currentVersion] || { content: "" };
+      modal.innerHTML = `
+        <h2>Edit assistant</h2>
+        <textarea id="editAssistantInput"></textarea>
+        <button id="saveEditAssistant">Save</button>
+      `;
+      const t = modal.querySelector("#editAssistantInput");
+      const s = modal.querySelector("#saveEditAssistant");
+      t.value = version.content;
+      s.onclick = () => {
+        version.content = t.value.trim();
+        saveChats();
+        modalOverlay.style.display = "none";
+        renderMessages();
+      };
+      modalOverlay.style.display = "flex";
+    }
+
+    function openDeleteAssistantModal(index) {
+      modal.innerHTML = `
+        <h2>Delete assistant</h2>
+        <div class="delete-text">Delete this assistant message?</div>
+        <div class="delete-buttons">
+          <button class="delete-btn" id="confirmDeleteAssistant">Delete</button>
+          <button class="delete-btn" id="cancelDeleteAssistant">Cancel</button>
+        </div>
+      `;
+      const confirmBtn = modal.querySelector("#confirmDeleteAssistant");
+      const cancelBtn = modal.querySelector("#cancelDeleteAssistant");
+      confirmBtn.onclick = () => {
+        messages.splice(index, 1);
+        saveChats();
+        modalOverlay.style.display = "none";
+        renderMessages();
+      };
+      cancelBtn.onclick = () => {
+        modalOverlay.style.display = "none";
+      };
+      modalOverlay.style.display = "flex";
+    }
+
+    /* =========================
+       CONTINUE / REGENERATE
+    ========================== */
+    function continueAssistant(index) {
+      if (isStreaming) return;
+      const userMsg = messages[index - 1];
+      const assistantMsg = messages[index];
+      if (!assistantMsg || assistantMsg.role !== "assistant") return;
+
+      const newVersion = { content: assistantMsg.versions[assistantMsg.currentVersion].content };
+      assistantMsg.versions.push(newVersion);
+      assistantMsg.currentVersion = assistantMsg.versions.length - 1;
+
+      sendChat(historyFromMessages(), index, assistantMsg.currentVersion);
+    }
+
+    function regenerateAssistant(index) {
+      if (isStreaming) return;
+      const userMsg = messages[index - 1];
+      const assistantMsg = messages[index];
+      if (!assistantMsg || assistantMsg.role !== "assistant") return;
+
+      const newVersion = { content: "" };
+      assistantMsg.versions.push(newVersion);
+      assistantMsg.currentVersion = assistantMsg.versions.length - 1;
+
+      sendChat(historyFromMessages(), index, assistantMsg.currentVersion);
+    }
+
+    /* =========================
+       HISTORY BUILDER
+    ========================== */
+    function historyFromMessages() {
+      return messages.map(m => {
+        if (m.role === "assistant") {
+          const v = m.versions[m.currentVersion] || { content: "" };
+          return { role: "assistant", content: v.content };
+        }
+        return { role: m.role, content: m.content };
+      });
+    }
+
+    /* =========================
+       SEND CHAT
+    ========================== */
+    function sendChat(history, assistantIndex, versionIndex) {
+      if (!wsReady) {
+        alert("WebSocket not connected.");
+        return;
+      }
+      if (!MODEL) {
+        alert("No model selected.");
+        return;
+      }
+      if (!API_TOKEN) {
+        openTokenModal();
+        return;
+      }
+
+      isStreaming = true;
+      send.disabled = true;
+      send.textContent = "Generating…";
+      stopBtn.disabled = false;
+      setStreamingDisabled(true);
+      setStatusDot("processing");
+
+      ws.send(JSON.stringify({
+        type: "chat",
+        history,
+        model: MODEL,
+        token: API_TOKEN,
+        assistantIndex,
+        versionIndex
+      }));
+    }
+
+    /* =========================
+       INPUT HANDLERS
+    ========================== */
+    send.onclick = () => {
+      if (isStreaming) return;
+      const text = input.value.trim();
+      if (!text) return;
+
+      messages.push({ role: "user", content: text });
+      const assistantIndex = messages.length;
+      messages.push({
+        role: "assistant",
+        currentVersion: 0,
+        versions: [{ content: "" }]
+      });
+
+      input.value = "";
+      renderMessages();
+      autoTitleCurrentChat();
+      saveChats();
+
+      sendChat(historyFromMessages(), assistantIndex, 0);
+    };
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send.click();
+      }
+    });
+
+    /* =========================
+       INIT
+    ========================== */
+    loadChats();
+  </script>
 </body>
 </html>
-
-
-
-
-
