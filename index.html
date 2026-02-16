@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LM Studio Chat</title>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
   <style>
-    /* ============================================
-       THEME VARIABLES
-    ============================================ */
+    /*
+      THEME VARIABLES
+    */
     :root {
       --bg: #111;
       --fg: #eee;
@@ -35,9 +34,9 @@
       --shadow: 0 10px 25px rgba(0,0,0,0.18);
     }
 
-    /* ============================================
-       GLOBAL
-    ============================================ */
+    /*
+      GLOBAL
+    */
     body {
       margin: 0;
       padding: 0;
@@ -55,9 +54,9 @@
       overflow: hidden;
     }
 
-    /* ============================================
-       SIDEBAR (desktop collapsible + mobile drawer)
-    ============================================ */
+    /*
+      SIDEBAR (desktop collapsible + mobile drawer)
+    */
     #sidebar {
       background: var(--bg);
       color: var(--fg);
@@ -67,8 +66,6 @@
       max-width: var(--sidebar-max);
       display: flex;
       flex-direction: column;
-
-      /* Fade + slide animation */
       transition:
         transform .28s ease,
         opacity .28s ease,
@@ -84,55 +81,55 @@
       max-width: 0;
     }
 
-   /* Mobile drawer (80% width) */
-   @media (max-width: 768px) {
-     #sidebar {
-       position: fixed;
-       top: 0;
-       bottom: 0;
-       left: -80%;
-       width: 80%;
-       max-width: none;
-       min-width: 0;
-       transition: left .25s ease;
-       z-index: 2000;
-     }
+    /* Mobile drawer (80% width) */
+    @media (max-width: 768px) {
+      #sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: -80%;
+        width: 80%;
+        max-width: none;
+        min-width: 0;
+        z-index: 2000;
+        transition: left .25s ease;
+      }
 
-     body.sidebar-open #sidebar {
-       left: 0;
-     }
+      body.sidebar-open #sidebar {
+        left: 0;
+      }
 
-     #sidebar-overlay {
-       position: fixed;
-       inset: 0;
-       background: rgba(0,0,0,0.45);
-       opacity: 0;
-       pointer-events: none;
-       transition: opacity .25s ease;
-       z-index: 1500;
-     }
+      #sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s ease;
+        z-index: 1500;
+      }
 
-     body.sidebar-open #sidebar-overlay {
-       opacity: 1;
-       pointer-events: auto;
-     }
+      body.sidebar-open #sidebar-overlay {
+        opacity: 1;
+        pointer-events: auto;
+      }
 
-     #sidebar-close {
-       position: fixed;
-       top: 12px;
-       left: calc(80% - 40px);
-       z-index: 2100;
-       background: var(--bubble-user);
-       padding: 8px 12px;
-       border-radius: 8px;
-       cursor: pointer;
-       display: none;
-     }
-   
-     body.sidebar-open #sidebar-close {
-       display: block;
-     }
-   }
+      #sidebar-close {
+        position: fixed;
+        top: 12px;
+        left: calc(80% - 40px);
+        z-index: 2100;
+        background: var(--bubble-user);
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: none;
+      }
+
+      body.sidebar-open #sidebar-close {
+        display: block;
+      }
+    }
 
     /* Sidebar header */
     #sidebar-header {
@@ -220,9 +217,9 @@
       opacity: 1;
     }
 
-    /* ============================================
-       MAIN AREA
-    ============================================ */
+    /*
+      MAIN AREA
+    */
     #main {
       flex: 1;
       display: flex;
@@ -231,16 +228,15 @@
       transition: margin-left .28s ease;
     }
 
-    /* Shift main content when sidebar collapses (desktop only) */
     @media (min-width: 769px) {
       body.sidebar-collapsed #main {
         margin-left: 0;
       }
     }
 
-    /* ============================================
-       TOP BAR
-    ============================================ */
+    /*
+      TOP BAR
+    */
     #topbar {
       padding: 12px 20px;
       border-bottom: 1px solid var(--accent);
@@ -311,9 +307,9 @@
       margin-right: 4px;
     }
 
-    /* ============================================
-       CHAT AREA
-    ============================================ */
+    /*
+      CHAT AREA
+    */
     #chat {
       flex: 1;
       overflow-y: auto;
@@ -361,9 +357,9 @@
       }
     }
 
-    /* ============================================
-       INPUT BAR
-    ============================================ */
+    /*
+      INPUT BAR
+    */
     #inputBar {
       display: flex;
       padding: 12px;
@@ -408,9 +404,9 @@
       transform: none;
     }
 
-    /* ============================================
-       MODAL
-    ============================================ */
+    /*
+      MODAL
+    */
     #modalOverlay {
       position: fixed;
       inset: 0;
@@ -461,15 +457,16 @@
       font-size: 14px;
       transition: background .2s;
     }
+
     #saveToken:hover,
     #saveEditPrompt:hover,
     #saveEditAssistant:hover {
       background: var(--accent);
     }
 
-    /* ============================================
-       ACTION CARDS (edit, delete, regenerate)
-    ============================================ */
+    /*
+      ACTION CARDS (edit, delete, regenerate)
+    */
     .action-card,
     .user-action-card,
     .delete-card {
@@ -572,11 +569,13 @@
 </head>
 <body>
   <div id="app">
+    <!-- Sidebar overlay + close (mobile) -->
+    <div id="sidebar-overlay"></div>
+    <div id="sidebar-close">✕</div>
+
     <!-- Sidebar -->
     <div id="sidebar">
       <div id="sidebar-header">
-       <div id="sidebar-overlay"></div>
-       <div id="sidebar-close">✕</div>
         <span id="sidebar-title">Chats</span>
         <button id="newChatBtn">+ New</button>
       </div>
@@ -596,7 +595,7 @@
           <select id="modelSelector" class="top-select"></select>
           <button id="healthCheckBtn" class="top-btn">Check</button>
           <button id="stopBtn" class="top-btn">Stop</button>
-          <button id="settingsBtn" class="top-btn">⚙️</button>
+          <button id="settingsBtn" class="top-btn">@</button>
           <button id="themeToggle" class="top-btn">Dark / Light</button>
         </div>
       </div>
@@ -606,7 +605,7 @@
 
       <!-- Input bar -->
       <div id="inputBar">
-        <input id="input" placeholder="Say something…" autocomplete="off" />
+        <input id="input" placeholder="Say something..." autocomplete="off" />
         <button id="send">Send</button>
       </div>
     </div>
@@ -618,10 +617,13 @@
   </div>
 
   <script>
-    /* =========================
-       CONFIG & GLOBAL STATE
-    ========================== */
-    const WS_URL = "wss://book5-de-rai.tail38c04a.ts.net";
+    /*
+      CONFIG & GLOBAL STATE
+    */
+    const WS_URL =
+      window.location.hostname.endsWith(".ts.net")
+        ? `wss://${window.location.hostname}`
+        : "ws://localhost:3000";
 
     let MODEL = null;
     let API_TOKEN = localStorage.getItem("lmstudio_token") || "";
@@ -638,6 +640,8 @@
     const chatListEl = document.getElementById("chatList");
     const newChatBtn = document.getElementById("newChatBtn");
     const sidebarToggle = document.getElementById("sidebarToggle");
+    const sidebarOverlay = document.getElementById("sidebar-overlay");
+    const sidebarClose = document.getElementById("sidebar-close");
     const modelSelector = document.getElementById("modelSelector");
     const modelStatus = document.getElementById("modelStatus");
     const healthCheckBtn = document.getElementById("healthCheckBtn");
@@ -649,17 +653,44 @@
 
     // messages: user / assistant with versions
     let messages = [];
-
     let isStreaming = false;
 
-    /* =========================
-       WEBSOCKET
-    ========================== */
+    /*
+      THEME DETECTION + TOGGLE
+    */
+    function applyTheme(theme) {
+      if (theme === "light") {
+        document.body.classList.add("light");
+      } else {
+        document.body.classList.remove("light");
+      }
+    }
+
+    (function initTheme() {
+      const stored = localStorage.getItem("lmstudio_theme");
+      if (stored === "light" || stored === "dark") {
+        applyTheme(stored);
+      } else {
+        const prefersLight = window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: light)").matches;
+        applyTheme(prefersLight ? "light" : "dark");
+      }
+    })();
+
+    themeToggle.onclick = () => {
+      const isLight = document.body.classList.contains("light");
+      const next = isLight ? "dark" : "light";
+      applyTheme(next);
+      localStorage.setItem("lmstudio_theme", next);
+    };
+
+    /*
+      WEBSOCKET
+    */
     let ws = null;
     let wsReady = false;
 
     function setStatusDot(state) {
-      // state: "online", "processing", "offline", "warning"
       if (state === "online") {
         modelStatus.style.color = "#4caf50";
       } else if (state === "processing") {
@@ -683,14 +714,12 @@
       ws.onopen = () => {
         wsReady = true;
         setStatusDot("online");
-        console.log("WS connected — requesting models");
-        ws.send(JSON.stringify({ type: "models", token: API_TOKEN }));
+        ws.send(JSON.stringify({ type: "models" }));
       };
 
       ws.onclose = () => {
         wsReady = false;
         setStatusDot("offline");
-        console.log("WS closed, retrying in 2s");
         setTimeout(connectWS, 2000);
       };
 
@@ -703,11 +732,10 @@
     }
 
     connectWS();
-  </script>
-  <script>
-    /* =========================
-       WEBSOCKET MESSAGE HANDLER
-    ========================== */
+
+    /*
+      WEBSOCKET MESSAGE HANDLER
+    */
     function handleWSMessage(event) {
       let data;
       try {
@@ -719,14 +747,12 @@
 
       if (data.type === "models") {
         const models = Array.isArray(data.models) ? data.models.filter(Boolean) : [];
-        console.log("Models received:", models);
         populateModelSelector(models);
         if (!models.length) setStatusDot("warning");
         return;
       }
 
       if (data.type === "health") {
-        console.log("Health:", data);
         if (data.lmstudio === "ok") {
           setStatusDot("online");
         } else if (data.lmstudio === "no-models") {
@@ -741,7 +767,6 @@
         const { assistantIndex, versionIndex, delta } = data;
         const msg = messages[assistantIndex];
         if (!msg || msg.role !== "assistant") return;
-
         let rawText = msg.versions[versionIndex].content || "";
         rawText += delta;
         msg.versions[versionIndex].content = rawText;
@@ -775,7 +800,6 @@
         stopBtn.disabled = true;
         setStreamingDisabled(false);
         setStatusDot("online");
-        console.log("Generation stopped by user");
         return;
       }
 
@@ -791,9 +815,9 @@
       }
     }
 
-    /* =========================
-       MODEL SELECTOR
-    ========================== */
+    /*
+      MODEL SELECTOR
+    */
     function populateModelSelector(models) {
       modelSelector.innerHTML = "";
       if (!models.length) {
@@ -833,13 +857,9 @@
       }
     };
 
-    /* =========================
-       THEME + SETTINGS
-    ========================== */
-    themeToggle.onclick = () => {
-      document.body.classList.toggle("light");
-    };
-
+    /*
+      SETTINGS (TOKEN MODAL)
+    */
     settingsBtn.onclick = () => openTokenModal();
 
     function openTokenModal() {
@@ -863,21 +883,21 @@
       if (e.target === modalOverlay) modalOverlay.style.display = "none";
     };
 
-    /* =========================
-       HEALTH CHECK BUTTON
-    ========================== */
+    /*
+      HEALTH CHECK BUTTON
+    */
     healthCheckBtn.onclick = () => {
       if (!wsReady) {
         alert("WebSocket not connected.");
         return;
       }
-      ws.send(JSON.stringify({ type: "health", token: API_TOKEN }));
+      ws.send(JSON.stringify({ type: "health" }));
       setStatusDot("processing");
     };
 
-    /* =========================
-       STOP GENERATION BUTTON
-    ========================== */
+    /*
+      STOP GENERATION BUTTON
+    */
     stopBtn.disabled = true;
     stopBtn.onclick = () => {
       if (!wsReady || !isStreaming) return;
@@ -885,9 +905,9 @@
       setStatusDot("processing");
     };
 
-    /* =========================
-       CHAT PERSISTENCE
-    ========================== */
+    /*
+      CHAT PERSISTENCE
+    */
     function loadChats() {
       try {
         const raw = localStorage.getItem("lmstudio_chats");
@@ -1037,11 +1057,10 @@
       saveChats();
       refreshChatList();
     }
-  </script>
-  <script>
-    /* =========================
-       SIDEBAR TOGGLE
-    ========================== */
+
+    /*
+      SIDEBAR TOGGLE
+    */
     newChatBtn.onclick = () => {
       createNewChat();
       if (window.innerWidth <= 768) {
@@ -1057,15 +1076,27 @@
       }
     };
 
+    if (sidebarOverlay) {
+      sidebarOverlay.onclick = () => {
+        document.body.classList.remove("sidebar-open");
+      };
+    }
+
+    if (sidebarClose) {
+      sidebarClose.onclick = () => {
+        document.body.classList.remove("sidebar-open");
+      };
+    }
+
     window.addEventListener("resize", () => {
       if (window.innerWidth > 768) {
         document.body.classList.remove("sidebar-open");
       }
     });
 
-    /* =========================
-       STREAMING DISABLE HELPER
-    ========================== */
+    /*
+      STREAMING DISABLE HELPER
+    */
     function setStreamingDisabled(disabled) {
       const cards = document.querySelectorAll(".action-card, .user-action-card, .delete-card");
       cards.forEach(c => {
@@ -1074,9 +1105,9 @@
       });
     }
 
-    /* =========================
-       RENDER MESSAGES
-    ========================== */
+    /*
+      RENDER MESSAGES
+    */
     function renderMessages() {
       chat.innerHTML = "";
       messages.forEach((msg, index) => {
@@ -1131,9 +1162,9 @@
               <button class="action-btn" data-action="delete-assistant">Delete</button>
             </div>
             <div class="version-bar">
-              <span class="version-arrow" data-dir="prev">◀</span>
+              <span class="version-arrow" data-dir="prev">&lt;&lt;</span>
               <span class="version-label"></span>
-              <span class="version-arrow" data-dir="next">▶</span>
+              <span class="version-arrow" data-dir="next">&gt;&gt;</span>
             </div>
           `;
 
@@ -1197,9 +1228,9 @@
       chat.scrollTop = chat.scrollHeight;
     }
 
-    /* =========================
-       EDIT / DELETE MODALS
-    ========================== */
+    /*
+      EDIT / DELETE MODALS
+    */
     function openEditUserModal(index) {
       const msg = messages[index];
       if (!msg || msg.role !== "user") return;
@@ -1223,7 +1254,9 @@
     function openDeleteUserModal(index) {
       modal.innerHTML = `
         <h2>Delete message</h2>
-        <div class="delete-text">Delete this user message and its following assistant reply (if any)?</div>
+        <div class="delete-text">
+          Delete this user message and its following assistant reply (if any)?
+        </div>
         <div class="delete-buttons">
           <button class="delete-btn" id="confirmDeleteUser">Delete</button>
           <button class="delete-btn" id="cancelDeleteUser">Cancel</button>
@@ -1290,38 +1323,31 @@
       modalOverlay.style.display = "flex";
     }
 
-    /* =========================
-       CONTINUE / REGENERATE
-    ========================== */
+    /*
+      CONTINUE / REGENERATE
+    */
     function continueAssistant(index) {
       if (isStreaming) return;
-      const userMsg = messages[index - 1];
       const assistantMsg = messages[index];
       if (!assistantMsg || assistantMsg.role !== "assistant") return;
-
-      const newVersion = { content: assistantMsg.versions[assistantMsg.currentVersion].content };
+      const newVersion = {
+        content: assistantMsg.versions[assistantMsg.currentVersion].content
+      };
       assistantMsg.versions.push(newVersion);
       assistantMsg.currentVersion = assistantMsg.versions.length - 1;
-
       sendChat(historyFromMessages(), index, assistantMsg.currentVersion);
     }
 
     function regenerateAssistant(index) {
       if (isStreaming) return;
-      const userMsg = messages[index - 1];
       const assistantMsg = messages[index];
       if (!assistantMsg || assistantMsg.role !== "assistant") return;
-
       const newVersion = { content: "" };
       assistantMsg.versions.push(newVersion);
       assistantMsg.currentVersion = assistantMsg.versions.length - 1;
-
       sendChat(historyFromMessages(), index, assistantMsg.currentVersion);
     }
 
-    /* =========================
-       HISTORY BUILDER
-    ========================== */
     function historyFromMessages() {
       return messages.map(m => {
         if (m.role === "assistant") {
@@ -1332,9 +1358,9 @@
       });
     }
 
-    /* =========================
-       SEND CHAT
-    ========================== */
+    /*
+      SEND CHAT
+    */
     function sendChat(history, assistantIndex, versionIndex) {
       if (!wsReady) {
         alert("WebSocket not connected.");
@@ -1348,10 +1374,9 @@
         openTokenModal();
         return;
       }
-
       isStreaming = true;
       send.disabled = true;
-      send.textContent = "Generating…";
+      send.textContent = "Generating...";
       stopBtn.disabled = false;
       setStreamingDisabled(true);
       setStatusDot("processing");
@@ -1366,9 +1391,9 @@
       }));
     }
 
-    /* =========================
-       INPUT HANDLERS
-    ========================== */
+    /*
+      INPUT HANDLERS
+    */
     send.onclick = () => {
       if (isStreaming) return;
       const text = input.value.trim();
@@ -1397,9 +1422,9 @@
       }
     });
 
-    /* =========================
-       INIT
-    ========================== */
+    /*
+      INIT
+    */
     loadChats();
   </script>
 </body>
