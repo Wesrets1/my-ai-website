@@ -1,0 +1,467 @@
+/* ============================================================
+   THEME VARIABLES — CLAUDE-STYLE, CLEAN, NO GRADIENTS
+============================================================ */
+:root {
+  --bg: #fafafa;
+  --bg-sidebar: #ffffff;
+  --bg-topbar: #ffffff;
+  --bg-input: #ffffff;
+
+  --border-subtle: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.12);
+
+  --text: #111;
+  --text-muted: #555;
+
+  --bubble-user: #e8e8e8;
+  --bubble-assistant: #f2f2f2;
+
+  --radius: 12px;
+  --container-max: 820px;
+  --font-size: 15px;
+
+  --pill-bg: #ddd;
+  --pill-active-bg: #bbb;
+}
+
+body.dark {
+  --bg: #111;
+  --bg-sidebar: #151515;
+  --bg-topbar: #151515;
+  --bg-input: #151515;
+
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.12);
+
+  --text: #f5f5f5;
+  --text-muted: #bbb;
+
+  --bubble-user: #2a2a2a;
+  --bubble-assistant: #1f1f1f;
+
+  --pill-bg: #333;
+  --pill-active-bg: #555;
+}
+
+/* ============================================================
+   GLOBAL RESET
+============================================================ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  font-size: var(--font-size);
+  height: 100vh;
+  overflow: hidden;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ============================================================
+   SIDEBAR
+============================================================ */
+#sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  transition: transform 0.25s ease;
+  z-index: 20;
+}
+
+body.sidebar-collapsed #sidebar {
+  transform: translateX(-100%);
+}
+
+#sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+#sidebar-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+#newChatBtn {
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+#chatList {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.chat-item {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.15s ease;
+}
+
+.chat-item:hover {
+  background: var(--bubble-assistant);
+}
+
+.chat-item.active {
+  background: var(--bubble-user);
+}
+
+.chat-title {
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.chat-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mobile drawer */
+#sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 15;
+}
+
+body.sidebar-open #sidebar-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+  #sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: -80%;
+    width: 80%;
+    min-width: 0;
+    border-right: none;
+    border-radius: 0 12px 12px 0;
+  }
+
+  body.sidebar-open #sidebar {
+    transform: translateX(80%);
+  }
+}
+
+/* ============================================================
+   MAIN AREA
+============================================================ */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#topbar {
+  background: var(--bg-topbar);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#sidebarToggle {
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.top-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.top-select,
+.top-btn {
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.top-btn.danger {
+  border-color: rgba(255,0,0,0.3);
+  color: #d66;
+}
+
+/* ============================================================
+   CHAT AREA — FIXED CONTAINER
+============================================================ */
+#chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+#chatInner {
+  width: 100%;
+  max-width: var(--container-max);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 20px;
+  background: var(--bg);
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-sizing: border-box;
+}
+
+.msg-wrapper {
+  margin: 0;
+}
+
+.msg {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  max-width: 100%;
+  width: fit-content;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+}
+
+.msg.user {
+  background: var(--bubble-user);
+  margin-left: auto;
+}
+
+.msg.assistant {
+  background: var(--bubble-assistant);
+  margin-right: auto;
+}
+
+/* ============================================================
+   MESSAGE ACTIONS (Claude-style)
+============================================================ */
+.msg-actions {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: -4px;
+  margin-bottom: -4px;
+}
+
+.msg-action {
+  cursor: pointer;
+  user-select: none;
+}
+
+.msg-action:hover {
+  text-decoration: underline;
+}
+
+/* ============================================================
+   VERSION PILLS (V1)
+============================================================ */
+.version-pills {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.version-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--pill-bg);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.version-pill.active {
+  background: var(--pill-active-bg);
+  font-weight: 600;
+}
+
+/* ============================================================
+   INLINE EDIT MODE
+============================================================ */
+.edit-box {
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  min-height: 60px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.edit-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bubble-user);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ============================================================
+   SOFT DELETE + UNDO
+============================================================ */
+.deleted-placeholder {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.undo-btn {
+  cursor: pointer;
+  color: var(--text-muted);
+  margin-left: 6px;
+  text-decoration: underline;
+}
+
+/* ============================================================
+   INPUT BAR
+============================================================ */
+#inputBar {
+  background: var(--bg-input);
+  border-top: 1px solid var(--border-subtle);
+  padding: 12px 16px;
+}
+
+#inputRow {
+  display: flex;
+  gap: 8px;
+}
+
+#input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg);
+  color: var(--text);
+  resize: none;
+  min-height: 40px;
+  max-height: 120px;
+  outline: none;
+}
+
+#send {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bubble-user);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* ============================================================
+   MODAL
+============================================================ */
+#modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 40;
+}
+
+#modal {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: min(420px, 90vw);
+}
+
+#modal h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.modal-input,
+.modal-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg);
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.modal-btn.primary {
+  background: var(--bubble-user);
+}
